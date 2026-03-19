@@ -3,6 +3,11 @@
 #ifndef __THREADPOOLTASK_H__
 #define __THREADPOOLTASK_H__
 
+// threadpooltask.h needs these includes at the top:
+#include "ext.h"
+#include "ext_obex.h"
+#include "ext_systhread.h"
+
 #if C74_PRAGMA_STRUCT_PACKPUSH
 #pragma pack(push, 2)
 #elif C74_PRAGMA_STRUCT_PACK
