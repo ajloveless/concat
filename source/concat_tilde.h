@@ -39,12 +39,12 @@ typedef struct _concat {
 
     /* ---- Double-buffered output ---- */
     t_concat_output_buffer *output_bufs[2];
-    t_atom_long  read_idx;
-    t_atom_long  write_idx;
+    t_atom  read_idx;
+    t_atom  write_idx;
 
     /* ---- Task management ---- */
     void        *current_task;       /* t_threadpooltask* (opaque) */
-    t_atom_long  processing_flag;    /* 0=idle, 1=working */
+    t_atom  processing_flag;    /* 0=idle, 1=working */
 
     /* ---- Input frame accumulation ---- */
     float *input_frame;

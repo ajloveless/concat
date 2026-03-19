@@ -4,7 +4,7 @@
 /* -----------------------------------------------------------------------
  * concat_buffer.h  -  Double-buffer management with atomic operations
  *
- * Uses the Max SDK t_atom_long and atom_setlong/atom_getlong for
+ * Uses the Max SDK t_atom and atom_setlong/atom_getlong for
  * portable atomic access on the ready flag.
  * ----------------------------------------------------------------------- */
 
@@ -15,7 +15,7 @@
 typedef struct _concat_output_buffer {
     float        *audio;        /* win synthesized samples */
     long          hop_offset;   /* read cursor (perform reads hop at a time) */
-    t_atom_long   ready;        /* 0 = being written, 1 = ready to read */
+    t_atom        ready;        /* 0 = being written, 1 = ready to read */
     long          win;          /* window size */
 } t_concat_output_buffer;
 
