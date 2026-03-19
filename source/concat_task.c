@@ -90,11 +90,23 @@ void concat_task_complete(t_concat_task_args *args)
  * ----------------------------------------------------------------------- */
 void concat_task_finish(t_concat *x, t_symbol *sym, long argc, void *argv)
 {
+    /* THIS RUNS IN MAIN THREAD — safe to modify shared state */
+
     /* Atomic swap: read ↔ write buffer */
     long old_read  = atom_getlong(&x->read_idx);
     long old_write = atom_getlong(&x->write_idx);
     atom_setlong(&x->read_idx,  old_write);
     atom_setlong(&x->write_idx, old_read);
+
+    /* Free the task struct and clear the pointer.
+     * The runner does not free the struct (it stays owned by the caller
+     * until this main-thread handler runs), so this is the safe place
+     * to release it — the runner has already called reg_dec() before
+     * this deferred callback fires. */
+    if (x->current_task) {
+        sysmem_freeptr(x->current_task);
+        x->current_task = NULL;
+    }
 
     /* Release processing flag */
     atom_setlong(&x->processing_flag, 0);

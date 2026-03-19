@@ -19,6 +19,7 @@
 #include "particle.h"
 #include "corpus.h"
 #include "audio_features.h"
+#include "threadpooltask.h"
 
 /* -----------------------------------------------------------------------
  * Main object structure
@@ -43,7 +44,7 @@ typedef struct _concat {
     t_atom  write_idx;
 
     /* ---- Task management ---- */
-    void        *current_task;       /* t_threadpooltask* (opaque) */
+    t_threadpooltask    *current_task;       /* in-flight task (or NULL) */
     t_atom  processing_flag;    /* 0=idle, 1=working */
 
     /* ---- Input frame accumulation ---- */
