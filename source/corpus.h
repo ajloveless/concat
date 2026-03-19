@@ -11,6 +11,8 @@
  *   4. Stores both the spectral features AND the raw windowed samples
  * ----------------------------------------------------------------------- */
 
+#include "ext.h"
+#include "ext_obex.h"
 #include "audio_features.h"
 
 typedef struct _corpus {
@@ -46,16 +48,7 @@ void corpus_free(t_corpus *corpus);
 /* Load corpus from a raw 32-bit float audio file.
  *   path      : absolute path to raw PCM float32 file
  *   samplerate: file sample rate (used only for metadata)
- *   win       : window size (must match corpus->win)
- *
- * Returns 0 on success, -1 on failure.
- *
- * NOTE: In a real Max external this would call sfopen / sndbuf APIs.
- * Here we read a flat binary float32 file so the implementation compiles
- * without the Max SDK; the concat_tilde.c integration layer provides a
- * thin wrapper that calls corpus_load_samples() with audio already decoded
- * by the Max buffer~ system.
- */
+ * Returns 0 on success, -1 on failure. */
 int corpus_load_file(t_corpus *corpus, const char *path, double samplerate);
 
 /* Load corpus from an in-memory float buffer (already decoded audio).
@@ -63,6 +56,13 @@ int corpus_load_file(t_corpus *corpus, const char *path, double samplerate);
  *   n_samples: total number of samples
  * Returns 0 on success, -1 on failure. */
 int corpus_load_samples(t_corpus *corpus, const float *samples, long n_samples);
+
+/* Load corpus from an audio file (AIFF, WAV, or MP3) using Max's path system.
+ *   owner   : Max object used for error/post messages (may be NULL)
+ *   filename: filename or absolute path; searched via Max's file paths
+ * Returns 0 on success, -1 on failure.
+ * Must be called from the Max main thread (e.g. inside a defer'd callback). */
+int corpus_load_audio(t_corpus *c, t_object *owner, const char *filename);
 
 /* Return the number of frames that would be produced for n_samples. */
 long corpus_frame_count(long n_samples, long win);
