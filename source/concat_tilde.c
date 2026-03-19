@@ -15,7 +15,7 @@
  *   @nmfiters    <int>    NMF iterations         (default 30)
  *
  * Messages:
- *   corpus <path>  — load corpus (raw float32 file)
+ *   corpus <path>  — load corpus (AIFF, WAV, or MP3; searched via Max paths)
  *   reset          — reset particle filter
  *   stats          — post performance statistics
  *
@@ -52,6 +52,7 @@ void  concat_perform64(t_concat *x, t_object *dsp64,
                        double **outs, long numouts,
                        long sampleframes, long flags, void *userparam);
 void  concat_corpus(t_concat *x, t_symbol *s);
+void  concat_docorpus(t_concat *x, t_symbol *s);
 void  concat_reset(t_concat *x);
 void  concat_stats(t_concat *x);
 void  concat_assist(t_concat *x, void *b, long m, long a, char *s);
@@ -320,42 +321,8 @@ void concat_perform64(t_concat *x, t_object *dsp64,
 }
 
 /* -----------------------------------------------------------------------
- * Corpus loading  (background thread)
+ * Corpus loading  (deferred to Max main thread for path + buffer~ APIs)
  * ----------------------------------------------------------------------- */
-typedef struct _corpus_load_args {
-    t_concat *x;
-    char      path[512];
-} t_corpus_load_args;
-
-static void* corpus_load_thread(void *arg)
-{
-    t_corpus_load_args *la = (t_corpus_load_args*)arg;
-    t_concat *x = la->x;
-
-    /* The mutex protects both the corpus pointer and the particle filter.
-     * The worker thread acquires the same mutex before reading the corpus,
-     * so holding it here prevents any race during the swap. */
-    systhread_mutex_lock(x->corpus_mutex);
-
-    t_corpus *nc = corpus_create(x->win, 1.0f);
-    if (nc && corpus_load_file(nc, la->path, 44100.0) == 0) {
-        corpus_free(x->corpus);
-        x->corpus = nc;
-        particle_filter_set_corpus_size(x->pf, nc->n_frames);
-        x->corpus_loaded = 1;
-        object_post((t_object*)x,
-                    "concat~: loaded '%s' (%ld frames)", la->path, nc->n_frames);
-    } else {
-        corpus_free(nc);
-        object_error((t_object*)x, "concat~: failed to load '%s'", la->path);
-    }
-
-    systhread_mutex_unlock(x->corpus_mutex);
-
-    sysmem_freeptr(la);
-    return NULL;
-}
-
 void concat_corpus(t_concat *x, t_symbol *s)
 {
     if (!s || s == gensym("")) {
@@ -363,14 +330,32 @@ void concat_corpus(t_concat *x, t_symbol *s)
         return;
     }
 
-    t_corpus_load_args *la = (t_corpus_load_args*)
-        sysmem_newptrclear(sizeof(t_corpus_load_args));
-    if (!la) { object_error((t_object*)x, "concat~: out of memory"); return; }
-    la->x = x;
-    strncpy(la->path, s->s_name, sizeof(la->path) - 1);
+    defer(x, (method)concat_docorpus, s, 0, NULL);
+}
 
-    t_systhread thr;
-    systhread_create((method)corpus_load_thread, la, 0, 0, 0, &thr);
+void concat_docorpus(t_concat *x, t_symbol *s)
+{
+    t_corpus *nc = corpus_create(x->win, 1.0f);
+    if (!nc) {
+        object_error((t_object*)x, "concat~: out of memory");
+        return;
+    }
+
+    /* corpus_load_audio() uses Max path APIs and the buffer~ API — must run
+     * on the main thread (guaranteed by defer above). */
+    if (corpus_load_audio(nc, (t_object*)x, s->s_name) != 0) {
+        corpus_free(nc);
+        return;
+    }
+
+    /* Swap in the new corpus under the mutex so the worker thread sees a
+     * consistent state when it next reads x->corpus. */
+    systhread_mutex_lock(x->corpus_mutex);
+    corpus_free(x->corpus);
+    x->corpus = nc;
+    particle_filter_set_corpus_size(x->pf, nc->n_frames);
+    x->corpus_loaded = 1;
+    systhread_mutex_unlock(x->corpus_mutex);
 }
 
 /* -----------------------------------------------------------------------
@@ -406,7 +391,7 @@ void concat_assist(t_concat *x, void *b, long m, long a, char *s)
     if (m == ASSIST_INLET) {
         switch (a) {
             case 0: sprintf(s, "(signal) Target audio input");         break;
-            case 1: sprintf(s, "(msg) corpus <path> / reset / stats"); break;
+            case 1: sprintf(s, "(msg) corpus <file> / reset / stats"); break;
             default: break;
         }
     } else {
