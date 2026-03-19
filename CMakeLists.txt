@@ -55,6 +55,7 @@ set(CONCAT_SOURCES
     source/concat_tilde.c
     source/concat_task.c
     source/concat_buffer.c
+    source/threadpooltask.c
     source/particle.c
     source/observer.c
     source/propagator.c

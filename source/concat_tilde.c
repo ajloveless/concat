@@ -219,12 +219,19 @@ void* concat_new(t_symbol *s, long argc, t_atom *argv)
  * ----------------------------------------------------------------------- */
 void concat_free(t_concat *x)
 {
-    /* Cancel any in-flight task and wait for all tasks to finish */
-    if (x->current_task) {
+    /* Cancel any in-flight task and wait for all tasks to finish.
+     * Keep x->current_task non-NULL so we can free the struct below
+     * if concat_task_finish has not yet run. */
+    if (x->current_task)
         threadpooltask_cancel(x->current_task);
+
+    threadpooltask_join_object((t_object*)x);
+
+    /* Free task struct if concat_task_finish has not already done so */
+    if (x->current_task) {
+        sysmem_freeptr(x->current_task);
         x->current_task = NULL;
     }
-    threadpooltask_join_object((t_object*)x);
 
     dsp_free((t_pxobject*)x);
 
@@ -246,7 +253,13 @@ void concat_free(t_concat *x)
 void concat_dsp64(t_concat *x, t_object *dsp64, short *count,
                   double samplerate, long maxvectorsize, long flags)
 {
-    /* Cancel running task so buffers can be safely reset */
+    /* Cancel running task so buffers can be safely reset.
+     * We do not join here (that would block the main thread).
+     * If the task has already completed and concat_task_finish has freed
+     * current_task, the pointer is already NULL and nothing happens.
+     * If the task is still in flight, cancel it and accept that the
+     * task struct will be freed when concat_task_finish eventually runs
+     * or when concat_free cleans up. */
     if (x->current_task) {
         threadpooltask_cancel(x->current_task);
         x->current_task = NULL;

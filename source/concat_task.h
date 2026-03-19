@@ -13,7 +13,7 @@
 
 #include "ext.h"
 #include "ext_obex.h"
-#include "ext_threadpool.h"
+#include "threadpooltask.h"
 
 /* Forward-declare t_concat so this header is self-contained. */
 struct _concat;
