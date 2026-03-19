@@ -1,0 +1,28 @@
+# Build artifacts
+build/
+*.o
+*.a
+a.out
+
+# macOS Max externals
+*.mxo/
+
+# Windows Max externals
+*.mxe64
+*.mxe
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+install_manifest.txt
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.xcodeproj/
+*.xcworkspace/
